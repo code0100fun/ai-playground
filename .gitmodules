@@ -1,0 +1,3 @@
+[submodule "text-generation-webui"]
+	path = text-generation-webui
+	url = https://github.com/oobabooga/text-generation-webui
