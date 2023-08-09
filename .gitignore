@@ -1,0 +1,5 @@
+flowise/
+jupyter/
+qdrant/
+models/
+.env

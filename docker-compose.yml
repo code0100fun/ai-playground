@@ -1,0 +1,84 @@
+version: '3.3'
+services:
+  jupyter:
+    image: jupyter/datascience-notebook
+    volumes:
+      - ./jupyter:/home/jovyan/work
+    user: root
+    environment:
+      - GRANT_SUDO=yes
+      - JUPYTER_ENABLE_LAB=yes
+    ports:
+      - 8888:8888
+    container_name: jupyter_notebook
+    networks:
+      - qdrant
+  flowise:
+    image: flowiseai/flowise
+    restart: always
+    environment:
+      - PORT=3000
+      - FLOWISE_USERNAME=${FLOWISE_USERNAME}
+      - FLOWISE_PASSWORD=${FLOWISE_PASSWORD}
+      - DEBUG=false
+      - DATABASE_PATH=/root/.flowise
+      - APIKEY_PATH=/root/.flowise
+      - SECRETKEY_PATH=/root/.flowise
+      - LOG_LEVEL=warn
+      - LOG_PATH=/root/.flowise/logs
+      - EXECUTION_MODE=main
+    ports:
+      - 3000:3000
+    volumes:
+      - ./flowise:/root/.flowise
+    command: /bin/sh -c "sleep 3; flowise start"
+    networks:
+      - qdrant
+      - webui
+  qdrant:
+    image: qdrant/qdrant
+    volumes:
+      - ./qdrant:/qdrant/storage
+    ports:
+      - 6333:6333
+      - 6334:6334
+    networks:
+      - qdrant
+  text-generation-webui:
+    build:
+      context: text-generation-webui
+      dockerfile: docker/Dockerfile
+      args:
+        # specify which cuda version your card supports: https://developer.nvidia.com/cuda-gpus
+        TORCH_CUDA_ARCH_LIST: 7.5
+        WEBUI_VERSION: HEAD
+    ports:
+      - 7860:7860
+      - 5000:5000
+      - 5005:5005
+      - 5006:5006
+    environment:
+      - CLI_ARGS=--chat --extensions openai --wbits 4 --listen --auto-devices
+      - OPENEDAI_PORT=5006
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./text-generation-webui/extensions:/app/extensions
+      - ./text-generation-webui/loras:/app/loras
+      - ./models:/app/models
+      - ./text-generation-webui/presets:/app/presets
+      - ./text-generation-webui/prompts:/app/prompts
+      - ./text-generation-webui/softprompts:/app/softprompts
+      - ./text-generation-webui/training:/app/training
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['0']
+              capabilities: [gpu]
+    networks:
+      - webui
+networks:
+  webui:
+  qdrant:
